@@ -40,6 +40,7 @@
           L.tileLayer(tileLayer.url_template, {
             maxZoom: tileLayer.maxZoom,
             minZoom: tileLayer.minZoom,
+            detectRetina: true,
             attribution: marked.parseInline(
               replaceGithubWikiLinks(tileLayer.attribution)
             ),
