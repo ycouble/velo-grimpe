@@ -1,0 +1,221 @@
+<html>
+  <head>
+    <title>Velogrimpe</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100vh;
+      }
+      .iconFalaise {
+        background-color: tomato;
+        padding: 3px !important;
+        border-radius: 50% 50% 50% 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      // Paramètres généraux
+      const iconSize = 20;
+
+      fetch(
+        "https://raw.githubusercontent.com/ycouble/velo-grimpe/refs/heads/main/umap_backup_carte-velogrimpe.umap"
+      ).then((response) => {
+        response.json().then((umap) => {
+          const layers = umap.layers;
+          const center = lngLatToLatLng(umap.geometry.coordinates);
+          const zoom = umap.properties.zoom;
+
+          // Création de la carte
+          var map = L.map("map").setView(center, zoom);
+          // Ajout des tiles référencées dans uMap
+          const tileLayer = umap.properties.tilelayer;
+          L.tileLayer(tileLayer.url_template, {
+            maxZoom: tileLayer.maxZoom,
+            minZoom: tileLayer.minZoom,
+            attribution: marked.parseInline(
+              replaceGithubWikiLinks(tileLayer.attribution)
+            ),
+            name: tileLayer.name,
+          }).addTo(map);
+
+          // Ajout de la couche voies ferrées
+          layers
+            .find((l) => l._umap_options.name === "Voies ferrées")
+            .features.forEach((feature) => {
+              const defaultStyle = {
+                color: "black",
+                weight: 3,
+              };
+              const highlightStyle = {
+                color: "#444",
+                weight: 6,
+              };
+              const polyline = L.polyline(
+                feature.geometry.coordinates.map(lngLatToLatLng),
+                defaultStyle
+              ).addTo(map);
+              polyline.bindPopup(popupContent(feature));
+              polyline.on("mouseover", function (e) {
+                e.target.setStyle(highlightStyle);
+              });
+              polyline.on("mouseout", function (e) {
+                e.target.setStyle(defaultStyle);
+              });
+            });
+
+          // Ajout de la couche Vélo
+          layers
+            .find((l) => l._umap_options.name === "Itinéraires vélo")
+            .features.forEach((feature) => {
+              const defaultStyle = {
+                color: "gold",
+                weight: 3,
+              };
+              const highlightStyle = {
+                color: "red",
+                weight: 6,
+              };
+              const polyline = L.polyline(
+                feature.geometry.coordinates.map(lngLatToLatLng),
+                { ...defaultStyle, riseOnHover: true, autoPanOnFocus: true }
+              ).addTo(map);
+              polyline.bindPopup(popupContent(feature));
+              polyline.on("mouseover", function (e) {
+                e.target.setStyle(highlightStyle);
+              });
+              polyline.on("mouseout", function (e) {
+                e.target.setStyle(defaultStyle);
+              });
+            });
+
+          // Ajout de la couche Gares
+          layers
+            .find((l) => l._umap_options.name === "Gares hors topo")
+            .features.forEach((feature) => {
+              const marker = L.circleMarker(
+                lngLatToLatLng(feature.geometry.coordinates),
+                {
+                  radius: 5,
+                  // Style bordure
+                  stroke: true,
+                  color: "#fff",
+                  weight: 1,
+                  // Style remplissage
+                  fill: true,
+                  fillColor: "#000",
+                  fillOpacity: 1,
+                }
+              ).addTo(map);
+              marker.bindPopup(popupContent(feature));
+            });
+
+          // Ajout de la couche Gares du topo
+          layers
+            .find((l) => l._umap_options.name === "Gares du topo")
+            .features.forEach((feature) => {
+              const marker = L.circleMarker(
+                lngLatToLatLng(feature.geometry.coordinates),
+                {
+                  radius: 5,
+                  // Style bordure
+                  stroke: true,
+                  color: "#fff",
+                  weight: 1,
+                  // Style remplissage
+                  fill: true,
+                  fillColor: "#8f8",
+                  fillOpacity: 1,
+                }
+              ).addTo(map);
+              marker.bindPopup(popupContent(feature));
+            });
+
+          // Ajout de la couche Falaises dans topo
+          const icon = (size) =>
+            L.icon({
+              iconUrl: "https://cdn-icons-png.flaticon.com/512/71/71443.png",
+              iconSize: [size, size],
+              iconAnchor: [0, size],
+              className: "iconFalaise",
+            });
+          layers
+            .find((l) => l._umap_options.name === "Falaises du topo")
+            .features.forEach((feature) => {
+              const defaultSize = iconSize;
+              const hoverSize = iconSize * 1.5;
+              const marker = L.marker(
+                lngLatToLatLng(feature.geometry.coordinates),
+                {
+                  icon: icon(defaultSize),
+                  riseOnHover: true,
+                  autoPanOnFocus: true,
+                }
+              ).addTo(map);
+              marker.bindPopup(popupContent(feature));
+              // on hover increase icon size
+              marker.on("mouseover", function (e) {
+                e.target.setIcon(icon(hoverSize));
+              });
+              marker.on("mouseout", function (e) {
+                e.target.setIcon(icon(defaultSize));
+              });
+            });
+        });
+      });
+
+      // Fonctions utilitaires
+      const replaceGithubWikiLinks = (markdown) => {
+        return markdown.replace(
+          /\[\[([^\]]+)\]\]/g,
+          function (allPattern, link) {
+            let url = link.replace(/\|(.*)/, "");
+            let linkTitle = link.replace(/([^\|]+)\|/, "");
+            if (!linkTitle) {
+              linkTitle = link;
+            }
+            if (!url) {
+              url = link;
+            }
+            link = `[${linkTitle}](${url})`;
+            return link;
+          }
+        );
+      };
+      const lngLatToLatLng = ([lng, lat, ...rest]) => [lat, lng, ...rest];
+      const popupContent = ({
+        properties: {
+          name,
+          description: _description,
+          name_pdf,
+          lien_openrunner,
+        },
+      }) => {
+        if (!_description) {
+          return `<b>${name}</b>`;
+        }
+        const description =
+          typeof _description === "string" ? _description : _description.value;
+        let desc = name_pdf
+          ? description.replace(/\{name_pdf\}/g, name_pdf)
+          : description;
+        if (lien_openrunner) {
+          desc += `\n\n[Trace GPS](${lien_openrunner})`;
+        }
+        return (
+          `<b>${name}</b>` +
+          (description
+            ? `<br>${marked.parse(replaceGithubWikiLinks(desc))}`
+            : "")
+        );
+      };
+    </script>
+  </body>
+</html>
