@@ -38,7 +38,6 @@
           // Ajout des tiles référencées dans uMap
           const tileLayer = umap.properties.tilelayer;
           L.tileLayer(tileLayer.url_template, {
-            tileSize: 512,
             maxZoom: tileLayer.maxZoom,
             minZoom: tileLayer.minZoom,
             attribution: marked.parseInline(
