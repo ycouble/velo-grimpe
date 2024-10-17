@@ -55,31 +55,6 @@
               tileSize: 256,
             }
           ).addTo(map);
-          // Ajout de la couche voies ferrées
-          layers
-            .find((l) => l._umap_options.name === "Voies ferrées")
-            .features.forEach((feature) => {
-              const defaultStyle = {
-                color: "black",
-                weight: 3,
-              };
-              const highlightStyle = {
-                color: "#444",
-                weight: 6,
-              };
-              const polyline = L.polyline(
-                feature.geometry.coordinates.map(lngLatToLatLng),
-                defaultStyle
-              ).addTo(map);
-              polyline.bindPopup(popupContent(feature));
-              polyline.on("mouseover", function (e) {
-                e.target.setStyle(highlightStyle);
-              });
-              polyline.on("mouseout", function (e) {
-                e.target.setStyle(defaultStyle);
-              });
-            });
-
           // Ajout de la couche Vélo
           layers
             .find((l) => l._umap_options.name === "Itinéraires vélo")
@@ -103,27 +78,6 @@
               polyline.on("mouseout", function (e) {
                 e.target.setStyle(defaultStyle);
               });
-            });
-
-          // Ajout de la couche Gares
-          layers
-            .find((l) => l._umap_options.name === "Gares hors topo")
-            .features.forEach((feature) => {
-              const marker = L.circleMarker(
-                lngLatToLatLng(feature.geometry.coordinates),
-                {
-                  radius: 5,
-                  // Style bordure
-                  stroke: true,
-                  color: "#fff",
-                  weight: 1,
-                  // Style remplissage
-                  fill: true,
-                  fillColor: "#000",
-                  fillOpacity: 1,
-                }
-              ).addTo(map);
-              marker.bindPopup(popupContent(feature));
             });
 
           // Ajout de la couche Gares du topo
