@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vélogrimpe.fr</title>
+    <link
+      rel="stylesheet"
+      href="https://www.velogrimpe.fr/leaflet/styles_copie.css"
+    />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100vh;
+      }
+      .iconFalaise {
+        background-color: tomato;
+        padding: 3px !important;
+        border-radius: 50% 50% 50% 0;
+      }
+    </style>
+    <script type="text/javascript">
+      function showDiv() {
+        var legende = document.getElementById("legende");
+        if (legende.style.display === "none" || legende.style.display === "") {
+          legende.style.display = "block";
+        } else {
+          legende.style.display = "none";
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <div class="menu-toggle" id="mobile-menu">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+        </div>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="index.php" class="active">CARTE</a></li>
+          <li><a href="topos_pdf.html">TOPOS PDF</a></li>
+          <li class="dropdown">
+            <a href="#" class="dropbtn">FALAISES PROCHES DE...</a>
+            <div class="dropdown-content">
+              <a href="tableau_chambery.pdf">Chambéry</a>
+              <a href="tableau_lyon.pdf">Lyon</a>
+            </div>
+          </li>
+          <li><a href="conseils_velogrimpe.pdf">LOGISTIQUE</a></li>
+          <li><a href="infos.html">PLUS D'INFOS</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <table align="center" width="90%">
+        <tr>
+          <td>
+            <div class="definition-box">
+              <strong>VÉLOGRIMPE :</strong>
+              <em
+                >activité consistant à combiner train et vélo pour aller grimper
+                en falaise. En plus de privilégier une mobilité douce, le
+                vélogrimpe donne l'occasion de vivre de petites aventures.
+                Synonyme : escaladopédalage.</em
+              >
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <div class="controls">
+        <input
+          type="button"
+          class="toggle-button"
+          value="Mode d'emploi (afficher/masquer)"
+          onclick="showDiv();"
+        />
+      </div>
+
+      <div id="legende" style="display: none">
+        <p>
+          <u>Légende de la carte :</u><br />
+          Lignes noires = voies ferrées ; Points noirs et verts = gares. <br />
+          Épingles roses = falaises (semi-transparentes si non mentionnées dans
+          le topo). <br />
+          Traits jaunes = itinéraires vélo.<br />
+          Attention : certains de ces éléments n'apparaissent que si le zoom est
+          suffisamment poussé.
+        </p>
+        <p>Récupérez les traces GPX des itinéraires vélo en cliquant dessus.</p>
+        <p>
+          Pour accéder aux fiches falaises : choisissez d'abord votre ville de
+          départ dans le menu déroulant, puis cliquez sur la falaise voulue.
+        </p>
+        <p>
+          Pour comprendre les abréviations utilisées, et savoir comment lire les
+          fiches,
+          <a href="https://velogrimpe.fr/abreviations.pdf" target="_blank"
+            >voir ici</a
+          >.
+        </p>
+        <p>
+          <a
+            href="https://www.google.com/maps/d/edit?mid=1g9JdXVvPsO0AMS8qUfli23WpPYbtg9Q&usp=sharing"
+            target="_blank"
+            >Version Google Maps de cette carte</a
+          >.
+        </p>
+      </div>
+
+      <div id="map"></div>
+      <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+      <script>
+        // Paramètres généraux
+        const iconSize = 20;
+
+        fetch("./umap_backup_carte-velogrimpe.umap", {
+          headers: { origin: "localhost" },
+        }).then((response) => {
+          response.json().then((umap) => {
+            const layers = umap.layers;
+            const center = lngLatToLatLng(umap.geometry.coordinates);
+            const zoom = umap.properties.zoom;
+
+            // Création de la carte
+            var map = L.map("map").setView(center, zoom);
+            // Ajout des tiles référencées dans uMap
+            const tileLayer = umap.properties.tilelayer;
+            L.tileLayer(tileLayer.url_template, {
+              maxZoom: tileLayer.maxZoom,
+              minZoom: tileLayer.minZoom,
+              detectRetina: true,
+              attribution: marked.parseInline(
+                replaceGithubWikiLinks(tileLayer.attribution)
+              ),
+              name: tileLayer.name,
+            }).addTo(map);
+
+            // Récupération des couches
+            const trains = layers.find(
+              (l) => l._umap_options.name === "Voies ferrées"
+            );
+            const velo = layers.find(
+              (l) => l._umap_options.name === "Itinéraires vélo"
+            );
+            const falaises = layers.find(
+              (l) => l._umap_options.name === "Falaises du topo"
+            );
+
+            // Ajout de la couche voies ferrées
+            trains.features.forEach((feature) => {
+              const defaultStyle = {
+                color: "black",
+                weight: 3,
+              };
+
+              const polyline = L.polyline(
+                feature.geometry.coordinates.map(lngLatToLatLng),
+                defaultStyle
+              ).addTo(map);
+            });
+
+            // Ajout de la couche Vélo
+            velo.features.forEach((feature) => {
+              const defaultStyle = {
+                color: "gold",
+                weight: 3,
+              };
+              const highlightStyle = {
+                color: "red",
+                weight: 6,
+              };
+              const polyline = L.polyline(
+                feature.geometry.coordinates.map(lngLatToLatLng),
+                { ...defaultStyle, riseOnHover: true, autoPanOnFocus: true }
+              ).addTo(map);
+              polyline.bindPopup(popupContent(feature));
+              polyline.on("mouseover", function (e) {
+                e.target.setStyle(highlightStyle);
+              });
+              polyline.on("mouseout", function (e) {
+                e.target.setStyle(defaultStyle);
+              });
+            });
+
+            // Ajout de la couche Falaises dans topo
+            const icon = (size) =>
+              L.icon({
+                iconUrl: "./placeholder_128px.png",
+                iconSize: [size, size],
+                iconAnchor: [0, size],
+                className: "iconFalaise",
+              });
+            layers
+              .find((l) => l._umap_options.name === "Falaises du topo")
+              .features.forEach((feature) => {
+                const defaultSize = iconSize;
+                const hoverSize = iconSize * 1.5;
+                const marker = L.marker(
+                  lngLatToLatLng(feature.geometry.coordinates),
+                  {
+                    icon: icon(defaultSize),
+                    riseOnHover: true,
+                    autoPanOnFocus: true,
+                  }
+                ).addTo(map);
+                marker.bindPopup(popupContent(feature));
+                // on hover increase icon size
+                marker.on("mouseover", function (e) {
+                  e.target.setIcon(icon(hoverSize));
+                });
+                marker.on("mouseout", function (e) {
+                  e.target.setIcon(icon(defaultSize));
+                });
+              });
+          });
+        });
+
+        // Fonctions utilitaires
+        const replaceGithubWikiLinks = (markdown) => {
+          return markdown.replace(
+            /\[\[([^\]]+)\]\]/g,
+            function (allPattern, link) {
+              let url = link.replace(/\|(.*)/, "");
+              let linkTitle = link.replace(/([^\|]+)\|/, "");
+              if (!linkTitle) {
+                linkTitle = link;
+              }
+              if (!url) {
+                url = link;
+              }
+              link = `[${linkTitle}](${url})`;
+              return link;
+            }
+          );
+        };
+        const lngLatToLatLng = ([lng, lat, ...rest]) => [lat, lng, ...rest];
+        const popupContent = ({
+          properties: {
+            name,
+            description: _description,
+            name_pdf,
+            lien_openrunner,
+          },
+        }) => {
+          if (!_description) {
+            return `<b>${name}</b>`;
+          }
+          const description =
+            typeof _description === "string"
+              ? _description
+              : _description.value;
+          let desc = name_pdf
+            ? description.replace(/\{name_pdf\}/g, name_pdf)
+            : description;
+          if (lien_openrunner) {
+            desc += `\n\n[Trace GPS](${lien_openrunner})`;
+          }
+          return (
+            `<b>${name}</b>` +
+            (description
+              ? `<br>${marked.parse(replaceGithubWikiLinks(desc))}`
+              : "")
+          );
+        };
+      </script>
+    </main>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const mobileMenu = document.getElementById("mobile-menu");
+        const navLinks = document.getElementById("nav-links");
+
+        mobileMenu.addEventListener("click", () => {
+          navLinks.classList.toggle("active");
+          mobileMenu.classList.toggle("active");
+        });
+      });
+    </script>
+  </body>
+</html>
